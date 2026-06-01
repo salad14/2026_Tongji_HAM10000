@@ -1,0 +1,38 @@
+HAM10000 数据完整性检查结果
+========================================
+metadata shape: (10015, 7)
+字段名: ['lesion_id', 'image_id', 'dx', 'dx_type', 'age', 'sex', 'localization']
+
+前 5 行:
+  lesion_id     image_id  dx dx_type  age  sex localization
+HAM_0000118 ISIC_0027419 bkl   histo 80.0 male        scalp
+HAM_0000118 ISIC_0025030 bkl   histo 80.0 male        scalp
+HAM_0002730 ISIC_0026769 bkl   histo 80.0 male        scalp
+HAM_0002730 ISIC_0025661 bkl   histo 80.0 male        scalp
+HAM_0001466 ISIC_0031633 bkl   histo 75.0 male          ear
+
+图片数量检查:
+- data/raw/ham10000/HAM10000_images_part_1: 5000 张 jpg
+- data/raw/ham10000/HAM10000_images_part_2: 5015 张 jpg
+- 合计可索引图片数量: 10015
+
+完整性检查:
+metadata 中无法找到对应图片的记录数: 0
+重复 image_id 数量: 0
+重复 lesion_id 数量: 2545
+
+dx 类别分布:
+dx
+nv       6705
+mel      1113
+bkl      1099
+bcc       514
+akiec     327
+vasc      142
+df        115
+
+关键字段缺失值情况:
+- age: missing=57, unknown=0
+- sex: missing=0, unknown=57
+- localization: missing=0, unknown=234
+- dx_type: missing=0, unknown=0

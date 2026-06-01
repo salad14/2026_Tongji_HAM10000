@@ -1,0 +1,9 @@
+data/raw/
+data/processed/
+*.zip
+__pycache__/
+.DS_Store
+.ipynb_checkpoints/
+kaggle.json
+access_token
+access_token.txt
