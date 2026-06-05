@@ -12,3 +12,4 @@ torch
 torchvision
 jupyter
 requests
+streamlit
