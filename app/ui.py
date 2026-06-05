@@ -5,7 +5,7 @@ import streamlit as st
 
 def configure_page(title: str) -> None:
     """Configure one Streamlit page and apply shared styles."""
-    st.set_page_config(page_title=f"{title} | SkinSight", page_icon="🔬", layout="wide")
+    st.set_page_config(page_title=f"{title} | SkinSight", page_icon="SS", layout="wide")
     st.markdown(
         """
         <style>
@@ -202,6 +202,14 @@ def configure_page(title: str) -> None:
     )
 
 
+def _sidebar_page_link(page: str, label: str, icon: str) -> None:
+    """Render navigation, falling back when a page is tested standalone."""
+    try:
+        st.sidebar.page_link(page, label=label, icon=icon)
+    except KeyError:
+        st.sidebar.markdown(f"- {label}")
+
+
 def render_sidebar() -> None:
     """Render persistent project context in the sidebar."""
     st.sidebar.markdown('<div class="skinsight-brand">SkinSight</div>', unsafe_allow_html=True)
@@ -211,13 +219,13 @@ def render_sidebar() -> None:
     )
     st.sidebar.divider()
     st.sidebar.markdown('<div class="skinsight-kicker">Research Console</div>', unsafe_allow_html=True)
-    st.sidebar.page_link("main.py", label="首页", icon=":material/home:")
-    st.sidebar.page_link("pages/1_diagnosis.py", label="病变诊断", icon=":material/stethoscope:")
-    st.sidebar.page_link("pages/2_model_evaluation.py", label="模型评估", icon=":material/query_stats:")
-    st.sidebar.page_link("pages/3_ablation_study.py", label="消融实验", icon=":material/compare_arrows:")
-    st.sidebar.page_link("pages/4_eda.py", label="数据探索", icon=":material/analytics:")
+    _sidebar_page_link("main.py", "首页", ":material/home:")
+    _sidebar_page_link("pages/1_diagnosis.py", "病变诊断", ":material/stethoscope:")
+    _sidebar_page_link("pages/2_model_evaluation.py", "模型评估", ":material/query_stats:")
+    _sidebar_page_link("pages/3_ablation_study.py", "消融实验", ":material/compare_arrows:")
+    _sidebar_page_link("pages/4_eda.py", "数据探索", ":material/analytics:")
     st.sidebar.divider()
-    st.sidebar.caption("真实模型推理适配器待接入，当前不会生成虚拟预测。")
+    st.sidebar.caption("真实模型已接入；CUDA 可用时默认使用 GPU 推理。")
     st.sidebar.caption("仅用于课程学习，不能替代医生诊断。")
 
 

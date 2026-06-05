@@ -13,7 +13,7 @@ import streamlit as st
 from matplotlib.ticker import PercentFormatter
 
 from app.ui import configure_page, render_page_header, render_sidebar
-from src.inference import PatientMetadata, predict
+from src.inference import PatientMetadata, predict, select_device
 from src.inference.schema import CLASS_LABELS, LOCALIZATION_OPTIONS, MODEL_VARIANTS, SEX_OPTIONS
 
 
@@ -59,13 +59,14 @@ configure_page("诊断")
 render_sidebar()
 
 render_page_header(
-    "Model Integration Workspace",
+    "Trained Model Inference",
     "皮肤病变诊断",
-    "上传皮肤镜图像并补充患者元数据。真实 PyTorch 推理适配器接入后，本页将展示模型输出的七分类概率。",
+    "上传皮肤镜图像并补充患者元数据，调用已训练 PyTorch 模型输出七分类概率。",
 )
 st.markdown(
-    '<div class="skinsight-warning"><strong>真实模型待接入。</strong>'
-    "接入 PyTorch 适配器前不会生成虚拟医学结果。</div>",
+    f'<div class="skinsight-note"><strong>真实模型已接入。</strong>'
+    f"当前默认推理设备：<code>{select_device()}</code>。"
+    "图像分支和融合分支需要上传图片；元数据分支可直接运行。</div>",
     unsafe_allow_html=True,
 )
 
@@ -91,18 +92,19 @@ with form_column:
             index=2,
             label_visibility="collapsed",
         )
-        submit = st.button("开始预测", type="primary", width="stretch")
+        submit = st.button("开始真实预测", type="primary", width="stretch")
 
         if submit:
             try:
                 metadata = PatientMetadata(age=float(age), sex=sex, localization=localization)
                 image = uploaded_file.getvalue() if uploaded_file is not None else None
-                st.session_state["diagnosis_result"] = predict(
-                    image=image,
-                    metadata=metadata,
-                    variant=variant,
-                )
-            except ValueError as exc:
+                with st.spinner("正在加载模型并执行推理..."):
+                    st.session_state["diagnosis_result"] = predict(
+                        image=image,
+                        metadata=metadata,
+                        variant=variant,
+                    )
+            except Exception as exc:
                 st.session_state.pop("diagnosis_result", None)
                 st.error(str(exc))
 
@@ -114,12 +116,12 @@ with result_column:
             st.info("填写左侧信息并生成结果后，此处将展示七分类概率。")
             st.markdown(
                 """
-                <div class="skinsight-placeholder">
-                    <div class="skinsight-placeholder-title">等待推理输入</div>
-                    <div class="skinsight-placeholder-copy">
-                        真实模型适配器接入后，图像分支和融合分支需要上传皮肤镜图片。
+                    <div class="skinsight-placeholder">
+                        <div class="skinsight-placeholder-title">等待推理输入</div>
+                        <div class="skinsight-placeholder-copy">
+                        选择模型分支并提交后，此处将展示真实模型的七分类概率。
+                        </div>
                     </div>
-                </div>
                 """,
                 unsafe_allow_html=True,
             )
