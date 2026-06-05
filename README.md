@@ -32,21 +32,27 @@
 │   ├── dataset_check_summary.txt    # 数据完整性检查报告
 │   └── figures/                     # EDA 图表
 ├── src/
-│   └── data/
-│       ├── download_kaggle.py       # 下载并解压 HAM10000
-│       ├── check_dataset.py         # 检查原始数据完整性
-│       ├── clean_metadata.py        # 清洗元数据并匹配图像路径
-│       ├── make_splits.py           # 按 lesion_id 划分数据集
-│       └── dataset.py               # PyTorch Dataset 与不平衡处理工具
+│   ├── data/
+│   │   ├── download_kaggle.py       # 下载并解压 HAM10000
+│   │   ├── check_dataset.py         # 检查原始数据完整性
+│   │   ├── clean_metadata.py        # 清洗元数据并匹配图像路径
+│   │   ├── make_splits.py           # 按 lesion_id 划分数据集
+│   │   └── dataset.py               # PyTorch Dataset 与不平衡处理工具
+│   ├── models/
+│   │   └── ham10000.py              # 三组消融实验模型
+│   ├── inference.py                 # 单张图片推理入口
+│   └── train.py                     # 训练、评估与重新评估脚本
 ├── requirements.txt
 └── README.md
 ```
 
-模型、实验配置和 Streamlit 应用将在后续开发中分别加入 `src/models/`、`experiments/` 和 `app/`。
+模型权重和训练输出位于 `outputs/`，该目录不提交到 Git。Streamlit 应用将在后续开发中加入 `app/`。
 
 ## 当前进度
 
-06.01 数据工程阶段已完成：仓库已包含数据检查、清洗、病灶级划分、EDA 和 PyTorch Dataset 接口。下一阶段将进行模型实现、训练评估和三组消融实验。
+06.01 数据工程阶段已完成：仓库已包含数据检查、清洗、病灶级划分、EDA 和 PyTorch Dataset 接口。
+
+06.05 算法训练阶段已完成：已实现 `meta_only`、`image_only`、`fusion` 三组消融实验，最终推荐使用 `fusion` 模型接入 Streamlit。模型权重不提交到 GitHub，请参考 `docs/algorithm_handoff.md` 获取交付方式。
 
 ## 环境配置
 
@@ -158,6 +164,44 @@ EDA 图表将保存至 `reports/figures/`。
 | `meta_only` | 年龄、性别、病灶部位 | 验证元数据本身的分类能力 |
 | `fusion` | 图像与元数据 | 评估多模态融合效果 |
 
+## 模型训练与评估
+
+训练入口：
+
+```bash
+python src/train.py --experiment meta_only --epochs 30 --batch-size 128
+python src/train.py --experiment image_only --epochs 30 --batch-size 32 --amp
+python src/train.py --experiment fusion --epochs 30 --batch-size 24 --amp
+```
+
+如果模型已经训练完成，可以只重新评估，不重新训练：
+
+```bash
+python src/train.py --experiment fusion --eval-only --batch-size 24 --amp
+```
+
+单张图片推理示例：
+
+```bash
+python src/inference.py \
+  --checkpoint outputs/fusion/best_model.pth \
+  --experiment fusion \
+  --image data/raw/ham10000/HAM10000_images_part_1/ISIC_0027419.jpg \
+  --age 80 \
+  --sex male \
+  --localization scalp
+```
+
+当前测试集结果：
+
+| 实验组 | Accuracy | Macro F1 | Weighted F1 | Macro AUC OvR |
+|---|---:|---:|---:|---:|
+| `meta_only` | 0.3494 | 0.1818 | 0.4313 | 0.7409 |
+| `image_only` | 0.8146 | 0.6932 | 0.8205 | 0.9621 |
+| `fusion` | 0.8226 | 0.6914 | 0.8286 | 0.9652 |
+
+工程交付和模型接入说明见 `docs/algorithm_handoff.md`。
+
 ## 团队分工
 
 | 成员 | 角色 | 主要职责 |
@@ -171,10 +215,13 @@ EDA 图表将保存至 `reports/figures/`。
 - `docs/plan.md`：技术方案与执行计划
 - `docs/数据分析与数据挖掘期末项目计划书.md`：课程项目计划书
 - `docs/feature_engineering_liujiye.md`：数据预处理与特征工程说明
+- `docs/training_guide.md`：模型训练入门说明
+- `docs/algorithm_handoff.md`：算法结果与工程交付说明
 - `README_data_liujiye.md`：数据工程运行说明
 
 ## 注意事项
 
 - `data/raw/` 和压缩包体积较大，不应提交到 Git。
+- `outputs/` 和 `*.pth` 模型权重不提交到 Git，应作为单独附件或 GitHub Release 资产交付。
 - HAM10000 类别分布不平衡，训练时应使用类别权重或加权采样。
 - 本项目仅用于课程学习与辅助研究展示，不能替代医生诊断。

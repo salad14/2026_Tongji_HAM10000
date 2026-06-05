@@ -1,6 +1,7 @@
 """PyTorch Dataset, transforms and imbalance utilities for HAM10000."""
 
 from pathlib import Path
+from typing import Iterable
 
 import albumentations as A
 import cv2
@@ -17,6 +18,53 @@ PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 TRAIN_CSV = PROCESSED_DIR / "train.csv"
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
+
+
+class MetadataEncoder:
+    """Encode age, sex and localization into a stable numeric feature vector.
+
+    Fit this encoder on the training CSV, then reuse it for validation and test
+    datasets. This keeps category indices consistent across all splits.
+    """
+
+    def __init__(self, sex_values: Iterable[str], localization_values: Iterable[str]) -> None:
+        self.sex_to_idx = self._build_category_map(sex_values)
+        self.localization_to_idx = self._build_category_map(localization_values)
+
+    @classmethod
+    def fit(cls, df: pd.DataFrame) -> "MetadataEncoder":
+        """Create an encoder from a training dataframe."""
+        return cls(df["sex"], df["localization"])
+
+    @staticmethod
+    def _build_category_map(values: Iterable[str]) -> dict[str, int]:
+        normalized = pd.Series(values).fillna("unknown").astype(str).str.lower().unique()
+        sorted_values = sorted(normalized)
+        if "unknown" in sorted_values:
+            sorted_values.remove("unknown")
+        sorted_values = ["unknown"] + sorted_values
+        return {value: idx for idx, value in enumerate(sorted_values)}
+
+    @property
+    def num_features(self) -> int:
+        """Return metadata feature dimension: age + sex one-hot + location one-hot."""
+        return 1 + len(self.sex_to_idx) + len(self.localization_to_idx)
+
+    def encode(self, row: pd.Series) -> torch.Tensor:
+        """Return a tensor containing normalized age and one-hot categorical features."""
+        age = float(row["age"]) / 100.0
+        features = torch.zeros(self.num_features, dtype=torch.float32)
+        features[0] = age
+
+        sex = str(row["sex"]).lower()
+        sex_idx = self.sex_to_idx.get(sex, self.sex_to_idx["unknown"])
+        features[1 + sex_idx] = 1.0
+
+        localization = str(row["localization"]).lower()
+        loc_idx = self.localization_to_idx.get(localization, self.localization_to_idx["unknown"])
+        loc_offset = 1 + len(self.sex_to_idx)
+        features[loc_offset + loc_idx] = 1.0
+        return features
 
 
 def get_train_transform(image_size: int = 224) -> A.Compose:
@@ -53,6 +101,7 @@ class HAM10000Dataset(Dataset):
         csv_path: str | Path,
         transform: A.Compose | None = None,
         use_metadata: bool = False,
+        metadata_encoder: MetadataEncoder | None = None,
         project_root: str | Path | None = None,
     ) -> None:
         self.csv_path = Path(csv_path)
@@ -68,17 +117,7 @@ class HAM10000Dataset(Dataset):
 
         self.transform = transform if transform is not None else get_valid_transform()
         self.use_metadata = use_metadata
-        self.sex_to_idx = self._build_category_map("sex")
-        self.localization_to_idx = self._build_category_map("localization")
-
-    def _build_category_map(self, column: str) -> dict[str, int]:
-        """Build a deterministic category-to-index mapping from a CSV column."""
-        values = self.df[column].fillna("unknown").astype(str).str.lower().unique()
-        sorted_values = sorted(values)
-        if "unknown" in sorted_values:
-            sorted_values.remove("unknown")
-            sorted_values = ["unknown"] + sorted_values
-        return {value: idx for idx, value in enumerate(sorted_values)}
+        self.metadata_encoder = metadata_encoder or MetadataEncoder.fit(self.df)
 
     def __len__(self) -> int:
         return len(self.df)
@@ -98,15 +137,8 @@ class HAM10000Dataset(Dataset):
         return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     def _metadata_tensor(self, row: pd.Series) -> torch.Tensor:
-        """Create a compact metadata tensor: age, sex id and localization id."""
-        age = float(row["age"]) / 100.0
-        sex = str(row["sex"]).lower()
-        localization = str(row["localization"]).lower()
-        sex_idx = self.sex_to_idx.get(sex, self.sex_to_idx.get("unknown", 0))
-        localization_idx = self.localization_to_idx.get(
-            localization, self.localization_to_idx.get("unknown", 0)
-        )
-        return torch.tensor([age, float(sex_idx), float(localization_idx)], dtype=torch.float32)
+        """Create a metadata feature tensor using the shared encoder."""
+        return self.metadata_encoder.encode(row)
 
     def __getitem__(self, idx: int):
         row = self.df.iloc[idx]
@@ -160,6 +192,7 @@ def main() -> None:
     print(f"image shape: {tuple(images.shape)}")
     print(f"metadata shape: {tuple(metadata.shape)}")
     print(f"label shape: {tuple(labels.shape)}")
+    print(f"metadata feature dim: {dataset.metadata_encoder.num_features}")
     print(f"class weights: {compute_class_weights(TRAIN_CSV).tolist()}")
 
 

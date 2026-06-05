@@ -7,3 +7,6 @@ kaggle.json
 access_token
 access_token.txt
 AGENT.md
+outputs/
+*.pth
+*.pt
