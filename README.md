@@ -177,7 +177,6 @@ python src/train.py --experiment fusion --eval-only --batch-size 24 --amp
 - `docs/plan.md`：技术方案与执行计划
 - `docs/数据分析与数据挖掘期末项目计划书.md`：课程项目计划书
 - `docs/feature_engineering_liujiye.md`：数据预处理与特征工程说明
-- `docs/training_guide.md`：模型训练入门说明
 - `docs/algorithm_handoff.md`：算法结果与工程交付说明
 - `README_data_liujiye.md`：数据工程运行说明
 
